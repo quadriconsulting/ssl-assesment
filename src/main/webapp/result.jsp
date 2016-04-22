@@ -24,7 +24,7 @@
                         <tr>
                             <td><c:out value='${wrongWebResourceStatusList.host}'/></td>
                             <td>
-                                <span <c:if test="${wrongWebResourceStatusList.status == 'A' || wrongWebResourceStatusList.status == 'A-' || wrongWebResourceStatusList.status == 'A+'}">style="color: green;"</c:if>><c:out value='${wrongWebResourceStatusList.status}'/></span>
+                                <span <c:if test="${wrongWebResourceStatusList.status == 'A' || wrongWebResourceStatusList.status == 'A-' || wrongWebResourceStatusList.status == 'A+'}">style="color: green;"</c:if>><a href="https://www.ssllabs.com/ssltest/analyze.html?d=${wrongWebResourceStatusList.host}"><c:out value='${wrongWebResourceStatusList.status}'/></a></span>
                             </td>
                             <td><span
                                     <c:if test="${wrongWebResourceStatusList.expireDaysAmount < 32}">style="color: red;"</c:if><c:if test="${wrongWebResourceStatusList.expireDaysAmount >= 32}">style="color: green;"</c:if> ><c:out
