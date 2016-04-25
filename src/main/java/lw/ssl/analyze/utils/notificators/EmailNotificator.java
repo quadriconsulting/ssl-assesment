@@ -1,12 +1,19 @@
 package lw.ssl.analyze.utils.notificators;
 
+import api.lw.ssl.analyze.responce.WebResourceStatus;
+import lw.ssl.analyze.report.HtmlContentReportBuilder;
 import lw.ssl.analyze.utils.PropertyFilesHelper;
 
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
 import javax.mail.*;
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
+import javax.mail.internet.*;
+import javax.mail.util.ByteArrayDataSource;
 import javax.servlet.ServletContext;
+import java.io.UnsupportedEncodingException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
 import java.util.Properties;
 
 /**
@@ -14,9 +21,11 @@ import java.util.Properties;
  */
 public class EmailNotificator {
     private static final String EMAIL_PROPERTIES_SERVLET_CONTENT_PATH = "/WEB-INF/properties/email.properties";
+    public static final String RESULTS = "results";
+    public static final String PATTERN = "yyyy.MM.dd_HH.mm.ss";
 
-    public static void notificate(String messageBody, String subject, ServletContext servletContext) {
-        if (messageBody != null && messageBody != "") {
+    public static void notificate(List<WebResourceStatus> webResourceStatusList, String subject, ServletContext servletContext) {
+        if (webResourceStatusList != null && webResourceStatusList.size() > 0) {
 
             try {
                 final Properties props = PropertyFilesHelper.getPropertyByPath(EMAIL_PROPERTIES_SERVLET_CONTENT_PATH, servletContext);
@@ -39,17 +48,29 @@ public class EmailNotificator {
                         internetAddresses[i] = new InternetAddress(eMails[i].trim());
                     }
 
+                    MimeBodyPart attachmentPart = new MimeBodyPart();
+                    String attachment = HtmlContentReportBuilder.getHtmlContentReport(webResourceStatusList, servletContext);
+                    DataSource ds = new ByteArrayDataSource(attachment.getBytes("UTF-8"), "application/octet-stream");
+                    attachmentPart = new MimeBodyPart();
+                    attachmentPart.setDataHandler(new DataHandler(ds));
+                    attachmentPart.setFileName(RESULTS + "_" + new SimpleDateFormat(PATTERN).format(new Date()) + ".html");
+
+                    Multipart multipart = new MimeMultipart();
+                    multipart.addBodyPart(attachmentPart);
+
                     msg.addRecipients(Message.RecipientType.TO, internetAddresses);
                     if (subject != null && subject != "") {
                         msg.setSubject(subject);
                     }
-                    msg.setText(messageBody);
 
+                    msg.setContent(multipart);
                     Transport.send(msg);
                 }
             } catch (AddressException e) {
                 e.printStackTrace();
             } catch (MessagingException e) {
+                e.printStackTrace();
+            } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
             }
         }

@@ -15,33 +15,6 @@ import java.util.List;
 public class InputStreamConverter {
     public static final String DEFAULT_TOKENS_SEPARATOR = ",";
 
-    public static String convertInputStreamToString(InputStream inputStream) {
-        BufferedReader br = null;
-        StringBuilder sb = new StringBuilder();
-
-        String line;
-        try {
-
-            br = new BufferedReader(new InputStreamReader(inputStream));
-            while ((line = br.readLine()) != null) {
-                sb.append(line);
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (br != null) {
-                try {
-                    br.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        return sb.toString();
-    }
-
     public static List<WebResourceDescription> convertToWebResourceDescriptions(InputStream inputStream, String tokensSeparator) {
         List<WebResourceDescription> webResourceDescriptionList = new ArrayList<WebResourceDescription>();
         BufferedReader br = null;
@@ -53,13 +26,15 @@ public class InputStreamConverter {
                 String[] tokens = line.split(DEFAULT_TOKENS_SEPARATOR);
                 if (tokens != null && tokens.length > 0) {
                     WebResourceDescription webResourceDescription = new WebResourceDescription();
-                    if (tokens.length == 1) {
-                        webResourceDescription.setHost(tokens[0].trim());
-                    } else {
-                        webResourceDescription.setHost(tokens[0].trim());
-                        webResourceDescription.setPort(tokens[1].trim());
+                    if (tokens[0].trim() != null && !"".equals(tokens[0].trim())) {
+                        if (tokens.length == 1) {
+                            webResourceDescription.setHost(tokens[0].trim());
+                        } else {
+                            webResourceDescription.setHost(tokens[0].trim());
+                            webResourceDescription.setPort(tokens[1].trim());
+                        }
+                        webResourceDescriptionList.add(webResourceDescription);
                     }
-                    webResourceDescriptionList.add(webResourceDescription);
                 }
             }
 

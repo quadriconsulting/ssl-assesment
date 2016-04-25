@@ -15,11 +15,15 @@
             }
         }
     %>
-    <form action="LogoutServlet" method="post">
-        <h4>Hi <%=userName %>!</h4><button type="submit" class="btn btn-default navbar-btn">Logout</button>
-    </form>
 
     <div class="container">
+        <div class="row">
+            <div class="col-xs-2">
+                <form action="LogoutServlet" method="post">
+                    <h4>Hi <%=userName %>!</h4><button type="submit" id="LogoutBtn" class="btn btn-default navbar-btn">Logout</button>
+                </form>
+            </div>
+        </div>
         <div class="row">
             <div class="col-xs-offset-3 col-xs-6">
                 <form name="fileSendForm" method="POST" action="uploadCSV" enctype="multipart/form-data">
@@ -27,7 +31,13 @@
                         <label for="fileCSV">File input</label>
                         <input type="file" name="fileCSV" id="fileCSV" accept="text/csv"/>
                     </div>
-                    <button type="submit" class="btn btn-default">Upload</button>
+                    <button type="submit" class="btn btn-default"
+                            onclick="
+                             this.disabled=true;
+                             document.getElementById('LogoutBtn').disabled = true;
+                             this.form.submit();">
+                        Upload
+                    </button>
                 </form>
             </div>
         </div>

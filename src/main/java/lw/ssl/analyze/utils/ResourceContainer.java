@@ -10,19 +10,19 @@ public class ResourceContainer {
     private static final String SSL_LABS_ANALYSIS_PREFIX = "analyze?all=on";
     private static final String SSL_LABS_INFO_PREFIX = "info";
 
-    public static String getSSLLabsInfoUrl() {
-        return new StringBuffer().append(SSL_LABS_URL).append(SSL_LABS_INFO_PREFIX).toString();
-    }
-
-    public static String getSSLLabsAnalysisUrl(String host, String port) {
+    public static String getSSLLabsAnalysisUrl(String host, String port, boolean isNewAssessment) {
         StringBuffer sslLabsUrl = new StringBuffer().append(SSL_LABS_URL).append(SSL_LABS_ANALYSIS_PREFIX);
 
-        if (host != null && host != "") {
+        if (host != null && !"".equals(host)) {
             sslLabsUrl.append(MessageFormat.format("&host={0}", host));
         }
-        if (port != null && port != "") {
+        if (port != null && !"".equals(port)) {
             sslLabsUrl.append(MessageFormat.format("&port={0}", port));
         }
+        if (isNewAssessment) {
+            sslLabsUrl.append("&startNew=on");
+        }
+
         return sslLabsUrl.toString();
     }
 }

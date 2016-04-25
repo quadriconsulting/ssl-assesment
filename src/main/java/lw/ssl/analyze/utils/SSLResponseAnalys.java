@@ -22,9 +22,7 @@ public class SSLResponseAnalys {
     public static String NO_GRADE_STATUS_SYMBOL = "T";
     public static long DAYS_TO_EXPIRE = 32;
 
-    public HostAnalysysResponse analysysResult(String analysisResponseString) {
-        JSONObject analysisResponseJSON = new JSONObject(analysisResponseString);
-
+    public HostAnalysysResponse analysysResult(JSONObject analysisResponseJSON) {
         HostAnalysysResponse hostAnalysysResponse = new SSLResponseAnalys.HostAnalysysResponse();
         hostAnalysysResponse.setSuccessfull(true);
         hostAnalysysResponse.setWebResourceStatus(new WebResourceStatus());
