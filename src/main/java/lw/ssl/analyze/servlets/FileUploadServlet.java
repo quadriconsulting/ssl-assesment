@@ -20,8 +20,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by zmushko_m on 21.04.2016.
@@ -77,37 +81,40 @@ public class FileUploadServlet extends HttpServlet {
         private List<WebResourceDescription> webResourceDescriptionlist;
         private List<WebResourceStatus> wrongWebResourceStatusList;
         private int percent;
-        private String currentUrl;
+        private HashMap<VerificationThread,String> currentUrl;
 
         public Task(List<WebResourceDescription> webResourceDescriptionlist) {
             this.webResourceDescriptionlist = webResourceDescriptionlist;
         }
 
+        List<WebResourceStatus> allWebResourceStatusList;
+        int count;
+
         @Override
         public void run() {
             wrongWebResourceStatusList = new ArrayList<>();
             percent = 0;
-            currentUrl = "";
-            List<WebResourceStatus> allWebResourceStatusList = new ArrayList<>();
+            allWebResourceStatusList = new ArrayList<>();
+            count = 0;
+            currentUrl = new HashMap<>();
+            ExecutorService executor = Executors.newFixedThreadPool(5);
 
-            SSLResponseAnalys analysysContext = new SSLResponseAnalys();
             //for each url with port (default 443)
-            for (int index = 0; index < webResourceDescriptionlist.size(); index++) {
-                WebResourceDescription webResourceDescription = webResourceDescriptionlist.get(index);
-                currentUrl = webResourceDescription.getHost() + (webResourceDescription.getPort() == null ? "" : ":" + webResourceDescription.getPort());
-                percent = Math.round(100 * index / webResourceDescriptionlist.size());
-                System.out.println("Analize url:" + webResourceDescription.getHost());
-
-                JSONObject analysisResponseJSON = SSLTest.getStatistic(webResourceDescription.getHost(), webResourceDescription.getPort(), true);
-
-                SSLResponseAnalys.HostAnalysysResponse hostAnalysysResponse = analysysContext.analysysResult(analysisResponseJSON);
-                if (!hostAnalysysResponse.isSuccessfull()) {
-                    wrongWebResourceStatusList.add(hostAnalysysResponse.getWebResourceStatus());
+            for (WebResourceDescription webResourceDescription : webResourceDescriptionlist) {
+                VerificationThread verificationThread = new VerificationThread(webResourceDescription);
+                executor.execute(verificationThread);
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-                allWebResourceStatusList.add(hostAnalysysResponse.getWebResourceStatus());
-                if(interrupted()){
-                    return;
-                }
+            }
+            try {
+                executor.awaitTermination(1, TimeUnit.DAYS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                executor.shutdown();
+                return;
             }
 
             if (wrongWebResourceStatusList != null && wrongWebResourceStatusList.size() > 0) {
@@ -120,6 +127,40 @@ public class FileUploadServlet extends HttpServlet {
             percent = 100;
         }
 
+        class VerificationThread implements Runnable {
+            WebResourceDescription webResourceDescription;
+            SSLResponseAnalys analysysContext = new SSLResponseAnalys();
+
+            VerificationThread(WebResourceDescription webResourceDescription) {
+                this.webResourceDescription = webResourceDescription;
+            }
+
+            @Override
+            public void run() {
+                System.out.println("Analize url:" + webResourceDescription.getHost());
+                currentUrl.put(this,webResourceDescription.getHost() + (webResourceDescription.getPort() == null ? "" : ":" + webResourceDescription.getPort()));
+                JSONObject analysisResponseJSON = SSLTest.getStatistic(webResourceDescription.getHost(), webResourceDescription.getPort(), true);
+
+                SSLResponseAnalys.HostAnalysysResponse hostAnalysysResponse = analysysContext.analysysResult(analysisResponseJSON);
+                if (!hostAnalysysResponse.isSuccessfull()) {
+                    addWrongWebResourceStatus(hostAnalysysResponse.getWebResourceStatus());
+                }
+                addWebResourceStatus(hostAnalysysResponse.getWebResourceStatus());
+                currentUrl.remove(this);
+                System.out.println("Url:" + webResourceDescription.getHost() + " done");
+            }
+        }
+
+        synchronized private void addWebResourceStatus(WebResourceStatus webResourceStatus) {
+            allWebResourceStatusList.add(webResourceStatus);
+            count++;
+            percent = Math.round(100 * count / webResourceDescriptionlist.size());
+        }
+
+        synchronized private void addWrongWebResourceStatus(WebResourceStatus webResourceStatus) {
+            wrongWebResourceStatusList.add(webResourceStatus);
+        }
+
         public List<WebResourceStatus> getWrongWebResourceStatusList() {
             return wrongWebResourceStatusList;
         }
@@ -129,7 +170,11 @@ public class FileUploadServlet extends HttpServlet {
         }
 
         public String getCurrentUrl() {
-            return currentUrl;
+            StringBuilder result = new StringBuilder();
+            for (String url : currentUrl.values()){
+                result.append(url).append(", ");
+            }
+            return result.toString();
         }
     }
 }
