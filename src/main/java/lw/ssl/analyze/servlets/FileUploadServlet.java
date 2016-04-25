@@ -3,12 +3,10 @@ package lw.ssl.analyze.servlets;
 import api.lw.ssl.analyze.responce.WebResourceStatus;
 import lw.ssl.analyze.pojo.WebResourceDescription;
 import lw.ssl.analyze.utils.InputStreamConverter;
-import lw.ssl.analyze.utils.ResourceContainer;
 import lw.ssl.analyze.utils.SSLResponseAnalys;
 import lw.ssl.analyze.utils.SSLTest;
 import lw.ssl.analyze.utils.notificators.EmailNotificator;
 import lw.ssl.analyze.utils.notificators.GitHubNotificator;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.servlet.ServletException;
@@ -21,8 +19,6 @@ import javax.servlet.http.Part;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
@@ -44,21 +40,18 @@ public class FileUploadServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String userName = (String) request.getSession(false).getAttribute("user");
-        Task currentTask = results.get(userName)==null?null:results.get(userName).get();
-        if (currentTask == null || !currentTask.isAlive()) {
-            Part filePart = request.getPart(FILE_PART_NAME);
-            InputStream fileInputStream = filePart.getInputStream();
-            currentTask = new Task(InputStreamConverter.convertToWebResourceDescriptions(fileInputStream));
-            currentTask.start();
-            results.put(userName, new WeakReference<Task>(currentTask));
-            request.setAttribute("wrongWebResourceStatusList", new ArrayList<>());
-            request.setAttribute("percent", 0);
-            request.setAttribute("currentUrl", "");
-        } else {
-            request.setAttribute("wrongWebResourceStatusList", currentTask.getWrongWebResourceStatusList());
-            request.setAttribute("percent", currentTask.getPercent());
-            request.setAttribute("currentUrl", currentTask.getCurrentUrl());
+        Task currentTask = results.get(userName) == null ? null : results.get(userName).get();
+        if(currentTask!=null&&currentTask.percent<100){
+            currentTask.interrupt();
         }
+        Part filePart = request.getPart(FILE_PART_NAME);
+        InputStream fileInputStream = filePart.getInputStream();
+        currentTask = new Task(InputStreamConverter.convertToWebResourceDescriptions(fileInputStream));
+        currentTask.start();
+        results.put(userName, new WeakReference<Task>(currentTask));
+        request.setAttribute("wrongWebResourceStatusList", new ArrayList<>());
+        request.setAttribute("percent", 0);
+        request.setAttribute("currentUrl", "");
 
         request.getRequestDispatcher("/result.jsp").forward(request, response);
     }
@@ -66,7 +59,7 @@ public class FileUploadServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String userName = (String) request.getSession(false).getAttribute("user");
-        Task currentTask = results.get(userName)==null?null:results.get(userName).get();
+        Task currentTask = results.get(userName) == null ? null : results.get(userName).get();
         if (currentTask == null) {
             request.setAttribute("wrongWebResourceStatusList", new ArrayList<>());
             request.setAttribute("percent", 0);
@@ -77,7 +70,7 @@ public class FileUploadServlet extends HttpServlet {
             request.setAttribute("currentUrl", currentTask.getCurrentUrl());
         }
 
-    request.getRequestDispatcher("/result.jsp").forward(request, response);
+        request.getRequestDispatcher("/result.jsp").forward(request, response);
     }
 
     class Task extends Thread {
@@ -101,7 +94,7 @@ public class FileUploadServlet extends HttpServlet {
             //for each url with port (default 443)
             for (int index = 0; index < webResourceDescriptionlist.size(); index++) {
                 WebResourceDescription webResourceDescription = webResourceDescriptionlist.get(index);
-                currentUrl = webResourceDescription.getHost() + (webResourceDescription.getPort()==null?"":":"+webResourceDescription.getPort());
+                currentUrl = webResourceDescription.getHost() + (webResourceDescription.getPort() == null ? "" : ":" + webResourceDescription.getPort());
                 percent = Math.round(100 * index / webResourceDescriptionlist.size());
                 System.out.println("Analize url:" + webResourceDescription.getHost());
 
@@ -112,6 +105,9 @@ public class FileUploadServlet extends HttpServlet {
                     wrongWebResourceStatusList.add(hostAnalysysResponse.getWebResourceStatus());
                 }
                 allWebResourceStatusList.add(hostAnalysysResponse.getWebResourceStatus());
+                if(interrupted()){
+                    return;
+                }
             }
 
             if (wrongWebResourceStatusList != null && wrongWebResourceStatusList.size() > 0) {

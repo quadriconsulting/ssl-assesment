@@ -26,6 +26,8 @@
         </div>
         <div class="row">
             <div class="col-xs-offset-3 col-xs-6">
+                <h1><a href="uploadCSV">Current task</a></h1><br/><br/>
+                <h1>Upload new file</h1>
                 <form name="fileSendForm" method="POST" action="uploadCSV" enctype="multipart/form-data">
                     <div class="form-group">
                         <label for="fileCSV">File input</label>
