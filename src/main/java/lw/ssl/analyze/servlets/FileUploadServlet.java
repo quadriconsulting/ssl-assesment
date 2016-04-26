@@ -97,23 +97,38 @@ public class FileUploadServlet extends HttpServlet {
             allWebResourceStatusList = new ArrayList<>();
             count = 0;
             currentUrl = new HashMap<>();
-            ExecutorService executor = Executors.newFixedThreadPool(5);
 
+            SSLTest.SSLInfo sslInfo = new SSLTest.SSLInfo(0, 0, 1000);
+            while (sslInfo.getPossibleAssessmentsAmount() == 0) {
+                sslInfo = SSLTest.getCountOfPossibleAssessments();
+                if (sslInfo.getPossibleAssessmentsAmount() == 0) {
+                    try {
+                        Thread.sleep(sslInfo.getNewAssessmentCoolOff());
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            ExecutorService executor = Executors.newFixedThreadPool(10);
             //for each url with port (default 443)
             for (WebResourceDescription webResourceDescription : webResourceDescriptionlist) {
                 VerificationThread verificationThread = new VerificationThread(webResourceDescription);
-                executor.execute(verificationThread);
+                executor.submit(verificationThread);
+
                 try {
-                    Thread.sleep(3000);
+                    Thread.sleep(sslInfo.getNewAssessmentCoolOff());
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
+
+            executor.shutdown();
+
             try {
                 executor.awaitTermination(1, TimeUnit.DAYS);
             } catch (InterruptedException e) {
                 e.printStackTrace();
-                executor.shutdown();
                 return;
             }
 
@@ -139,13 +154,57 @@ public class FileUploadServlet extends HttpServlet {
             public void run() {
                 System.out.println("Analize url:" + webResourceDescription.getHost());
                 currentUrl.put(this,webResourceDescription.getHost() + (webResourceDescription.getPort() == null ? "" : ":" + webResourceDescription.getPort()));
-                JSONObject analysisResponseJSON = SSLTest.getStatistic(webResourceDescription.getHost(), webResourceDescription.getPort(), true);
 
-                SSLResponseAnalys.HostAnalysysResponse hostAnalysysResponse = analysysContext.analysysResult(analysisResponseJSON);
-                if (!hostAnalysysResponse.isSuccessfull()) {
-                    addWrongWebResourceStatus(hostAnalysysResponse.getWebResourceStatus());
+                JSONObject analysisResponseJSON = null;
+
+                SSLTest.SSLInfo sslInfo = new SSLTest.SSLInfo(0, 0, 1000);
+                boolean wasAssessmentDone = false;
+                int countOfAmount = 0;
+
+                while (!wasAssessmentDone && !(countOfAmount > 60)) {
+                    while (sslInfo.getPossibleAssessmentsAmount() == 0) {
+                        sslInfo = SSLTest.getCountOfPossibleAssessments();
+                        if (sslInfo.getPossibleAssessmentsAmount() == 0) {
+                            try {
+                                Thread.sleep(sslInfo.getNewAssessmentCoolOff());
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+
+                    try {
+                        countOfAmount++;
+                        analysisResponseJSON = SSLTest.getStatistic(webResourceDescription.getHost(), webResourceDescription.getPort(), true);
+                        wasAssessmentDone = true;
+                    } catch (IOException ex) {
+                        if (ex.getMessage().startsWith("Server returned HTTP response code: 429")) {
+                            System.out.println("Error 429:" + webResourceDescription.getHost());
+                            sslInfo = new SSLTest.SSLInfo(0, 0, 1000);
+                            continue;
+                        } else {
+                            ex.printStackTrace();
+                            break;
+                        }
+                    }
                 }
-                addWebResourceStatus(hostAnalysysResponse.getWebResourceStatus());
+
+                if (analysisResponseJSON != null) {
+                    SSLResponseAnalys.HostAnalysysResponse hostAnalysysResponse = analysysContext.analysysResult(analysisResponseJSON);
+                    if (!hostAnalysysResponse.isSuccessfull()) {
+                        addWrongWebResourceStatus(hostAnalysysResponse.getWebResourceStatus());
+                    }
+                    addWebResourceStatus(hostAnalysysResponse.getWebResourceStatus());
+                } else {
+                    SSLResponseAnalys.HostAnalysysResponse hostAnalysysResponse = new SSLResponseAnalys.HostAnalysysResponse();
+                    hostAnalysysResponse.setSuccessfull(false);
+                    WebResourceStatus webResourceStatus = new WebResourceStatus();
+                    webResourceStatus.setExpireDaysText("no dev.ssllabs.com responce");
+                    webResourceStatus.setExpireDaysAmount(0);
+                    webResourceStatus.setStatus("");
+                    webResourceStatus.setHost(webResourceDescription.getHost());
+                    hostAnalysysResponse.setWebResourceStatus(webResourceStatus);
+                }
                 currentUrl.remove(this);
                 System.out.println("Url:" + webResourceDescription.getHost() + " done");
             }
@@ -169,7 +228,7 @@ public class FileUploadServlet extends HttpServlet {
             return percent;
         }
 
-        public String getCurrentUrl() {
+        synchronized public String getCurrentUrl() {
             StringBuilder result = new StringBuilder();
             for (String url : currentUrl.values()){
                 result.append(url).append(", ");

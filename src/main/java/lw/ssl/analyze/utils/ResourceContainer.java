@@ -25,4 +25,8 @@ public class ResourceContainer {
 
         return sslLabsUrl.toString();
     }
+
+    public static String getSSLLabsInfoUrl() {
+        return SSL_LABS_URL + SSL_LABS_INFO_PREFIX;
+    }
 }

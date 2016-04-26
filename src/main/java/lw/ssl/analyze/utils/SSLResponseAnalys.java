@@ -92,7 +92,7 @@ public class SSLResponseAnalys {
         return hostAnalysysResponse;
     }
 
-    public class HostAnalysysResponse {
+    public static class HostAnalysysResponse {
         private boolean isSuccessfull;
         private WebResourceStatus webResourceStatus;
 

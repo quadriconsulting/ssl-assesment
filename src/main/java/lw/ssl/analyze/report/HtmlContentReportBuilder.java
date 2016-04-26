@@ -40,7 +40,7 @@ public class HtmlContentReportBuilder {
                             } else {
                                 reportTableRows.append("<span " + (webResourceStatus.getExpireDaysAmount() > 32?"style='color: green;'":"style='color: red;'") + ">");
                             }
-                                reportTableRows.append(webResourceStatus.getExpireDaysText());
+                                reportTableRows.append(webResourceStatus.getExpireDaysText() != null && !"".equals(webResourceStatus.getExpireDaysText())?webResourceStatus.getExpireDaysText():"");
                             reportTableRows.append("</span>");
                         reportTableRows.append("</td>");
                     reportTableRows.append("</tr>");
